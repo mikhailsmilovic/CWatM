@@ -15,7 +15,8 @@ class soil(object):
 
     """
     SOIL
-    Caclulation vertical transfer of water based on improved Arno scheme
+
+    Caclulation vertical transfer of water based on Arno scheme
     """
 
     def __init__(self, soil_variable):
@@ -30,10 +31,6 @@ class soil(object):
 
         * Initialize all the hydraulic properties of soil
         * Set soil depth
-
-        Todo:
-            individual soil properties for each land cover type
-
         """
 
         self.var.soilLayers = 3
@@ -94,6 +91,8 @@ class soil(object):
         self.var.soildepth[2] = self.var.soildepth[2] * soildepth_factor
         self.var.soildepth12 = self.var.soildepth[1] + self.var.soildepth[2]
 
+        ii= 0
+
         # report("C:/work/output2/soil.map", self.var.soildepth12)
 
 
@@ -110,10 +109,10 @@ class soil(object):
     def dynamic(self, coverType, No):
         """
         Dynamic part of the soil module
+
         For each of the land cover classes the vertical water transport is simulated
         Distribution of water holding capiacity in 3 soil layers based on saturation excess overland flow, preferential flow
         Dependend on soil depth, soil hydraulic parameters
-
         """
 
     # ---------------------------------------------------------
@@ -177,6 +176,20 @@ class soil(object):
         #if (dateVar['curr'] >= 0) and (No==3):
         #    ii=1
 
+        # add capillary rise from groundwater if modflow is used
+        if self.var.modflow:
+            ### if GW capillary rise saturates soil layers, water is sent to the above layer, then to runoff
+            self.var.w3[No] = self.var.w3[No] + self.var.capillar
+            # CAPRISE from GW to soilayer 3 , if this is full it is send to soil layer 2
+            self.var.w2[No] = self.var.w2[No] + np.where(self.var.w3[No] > self.var.ws3[No], self.var.w3[No] - self.var.ws3[No], 0)
+            self.var.w3[No] = np.minimum(self.var.ws3[No], self.var.w3[No])
+            # CAPRISE from GW to soilayer 2 , if this is full it is send to soil layer 1
+            self.var.w1[No] = self.var.w1[No] + np.where(self.var.w2[No] > self.var.ws2[No], self.var.w2[No] - self.var.ws2[No], 0)
+            self.var.w2[No] = np.minimum(self.var.ws2[No], self.var.w2[No])
+            # CAPRISE from GW to soilayer 1 , if this is full it is send to RUNOFF
+            saverunofffromGW = + np.where(self.var.w1[No] > self.var.ws1[No], self.var.w1[No] - self.var.ws1[No], 0)
+            self.var.w1[No]= np.minimum(self.var.ws1[No], self.var.w1[No])
+
         # ---------------------------------------------------------
         # calculate transpiration
         # ***** SOIL WATER STRESS ************************************
@@ -214,8 +227,6 @@ class soil(object):
         wCrit3 = ((1 - p) * (self.var.wfc3[No] - self.var.wwp3[No])) + self.var.wwp3[No]
 
         # Transpiration reduction factor (in case of water stress)
-
-
         rws1 = divideValues((self.var.w1[No] - self.var.wwp1[No]),(wCrit1 - self.var.wwp1[No]), default = 1.)
         rws2 = divideValues((self.var.w2[No] - self.var.wwp2[No]), (wCrit2 - self.var.wwp2[No]), default=1.)
         rws3 = divideValues((self.var.w3[No] - self.var.wwp3[No]), (wCrit3 - self.var.wwp3[No]), default=1.)
@@ -243,8 +254,6 @@ class soil(object):
         #    ii=1
         #   #print ('t', self.var.w1[No][0:3])
 
-
-
         self.var.w1[No] = self.var.w1[No] - ta1
         self.var.w2[No] = self.var.w2[No] - ta2
         self.var.w3[No] = self.var.w3[No] - ta3
@@ -270,6 +279,7 @@ class soil(object):
         soilWaterStorage =  self.var.w1[No] + self.var.w2[No]
         soilWaterStorageCap = self.var.ws1[No] + self.var.ws2[No]
         relSat = soilWaterStorage / soilWaterStorageCap
+        relSat = np.minimum(relSat, 1.0)
 
         #if np.min(self.var.w1[No])< 0.:
         #   ii =1
@@ -313,6 +323,12 @@ class soil(object):
             h = np.maximum(0., self.var.topwater- self.var.maxtopwater)
             self.var.directRunoff[No] = np.where(self.var.cropKC[No] > 0.75, h, self.var.directRunoff[No])
             self.var.topwater = np.maximum(0., self.var.topwater - self.var.directRunoff[No])
+
+
+        ### ModFlow
+        if self.var.modflow:
+            self.var.directRunoff[No]=self.var.directRunoff[No] + saverunofffromGW
+            # ADDING EXCESS WATER FROM GW CAPILLARY RISE
 
 
         # infiltration to soilayer 1 , if this is full it is send to soil layer 2
@@ -375,16 +391,23 @@ class soil(object):
         satTermFC3 = np.maximum(0., self.var.w3[No] - self.var.wres3[No]) / (self.var.wfc3[No] - self.var.wres3[No])
         capRise1 = np.minimum(np.maximum(0., (1 - satTermFC1) * kUnSat2), self.var.kunSatFC12[No])
         capRise2 = np.minimum(np.maximum(0., (1 - satTermFC2) * kUnSat3), self.var.kunSatFC23[No])
-        self.var.capRiseFromGW[No] = np.maximum(0., (1 - satTermFC3) * np.sqrt(self.var.KSat3[NoSoil] * kUnSat3))
-        self.var.capRiseFromGW[No] = 0.5 * self.var.capRiseFrac * self.var.capRiseFromGW[No]
-        self.var.capRiseFromGW[No] = np.minimum(np.maximum(0., self.var.storGroundwater), self.var.capRiseFromGW[No])
+
+
+        if self.var.modflow:
+            # from Modflow
+            self.var.capRiseFromGW[No] = self.var.capillar
+        else:
+            self.var.capRiseFromGW[No] = np.maximum(0., (1 - satTermFC3) * np.sqrt(self.var.KSat3[NoSoil] * kUnSat3))
+            self.var.capRiseFromGW[No] = 0.5 * self.var.capRiseFrac * self.var.capRiseFromGW[No]
+            self.var.capRiseFromGW[No] = np.minimum(np.maximum(0., self.var.storGroundwater), self.var.capRiseFromGW[No])
 
         self.var.w1[No] = self.var.w1[No] + capRise1
-        self.var.w2[No] = self.var.w2[No] - capRise1 +  capRise2
-        self.var.w3[No] = self.var.w3[No] - capRise2 + self.var.capRiseFromGW[No]
-
-
-
+        self.var.w2[No] = self.var.w2[No] - capRise1 + capRise2
+        if self.var.modflow:
+            self.var.w3[No] = self.var.w3[No] - capRise2
+            # GW capillary rise has already been added to the soil
+        else:
+            self.var.w3[No] = self.var.w3[No] - capRise2 + self.var.capRiseFromGW[No]
 
         # Percolation -----------------------------------------------
         # Available water in both soil layers [m]
@@ -545,22 +568,21 @@ class soil(object):
         #self.var.gwRecharge[No] = self.var.perc3toGW[No] - self.var.capRiseFromGW[No] + self.var.prefFlow[No]
         toGWorInterflow = self.var.perc3toGW[No] + self.var.prefFlow[No]
         self.var.interflow[No] = self.var.percolationImp * toGWorInterflow
-        self.var.gwRecharge[No] = (1 - self.var.percolationImp) * toGWorInterflow  - self.var.capRiseFromGW[No]
+
+        if self.var.modflow:
+            self.var.gwRecharge[No] = (1 - self.var.percolationImp) * toGWorInterflow
+        else:
+            self.var.gwRecharge[No] = (1 - self.var.percolationImp) * toGWorInterflow - self.var.capRiseFromGW[No]
+
+
 
 
         # landSurfaceRunoff (needed for routing)
         #self.var.landSurfaceRunoff[No] = self.var.directRunoff[No] + self.var.interflowTotal[No]
 
-
-
-
-
-
-
-
         #if (dateVar['curr'] == 121) and (No==2):
         #    ii=1
-
+        """
         if checkOption('calcWaterBalance'):
             self.var.waterbalance_module.waterBalanceCheck(
                 [self.var.availWaterInfiltration[No], self.var.capRiseFromGW[No], self.var.irrConsumption[No]],  # In  water demand included in availwater
@@ -589,6 +611,7 @@ class soil(object):
                 [preStor1, preStor2, preStor3,pretopwater],  # prev storage
                 [self.var.w1[No], self.var.w2[No], self.var.w3[No],self.var.topwater],
                 "Soil_AllSoil", False)
+        """
 
 
 

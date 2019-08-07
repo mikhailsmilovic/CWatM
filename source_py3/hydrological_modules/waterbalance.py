@@ -58,6 +58,7 @@ class waterbalance(object):
     def waterBalanceCheck(self, fluxesIn, fluxesOut, preStorages, endStorages, processName, printTrue=False):
         """
         Dynamic part of the water balance module
+
         Returns the water balance for a list of input, output, and storage map files
 
         :param fluxesIn: income
@@ -66,7 +67,7 @@ class waterbalance(object):
         :param endStorages:  this was in afterwards
         :param processName:  name of the process
         :param printTrue: calculate it?
-        :return:
+        :return: -
         """
 
         if printTrue:
@@ -86,13 +87,14 @@ class waterbalance(object):
             #balance = endStorages
             #if balance is not empty
             if balance.size:
+                balance[np.isnan(balance)]= 0
                 minB = np.amin(balance)
                 maxB = np.amax(balance)
                 maxBB = np.maximum(np.abs(minB),np.abs(maxB))
             #meanB = np.average(balance, axis=0)
             #meanB = 0.0
 
-            #print "     %s %10.8f " % (processName, maxBB),
+            # print ("     %s %10.8f " % (processName, maxBB),)
             #if maxBB > 0.00000001:
             #    sys.exit()
             if maxBB > 0.0000000001:
@@ -176,7 +178,7 @@ class waterbalance(object):
 
         if checkOption('calcWaterBalance'):
 
-
+            """
             self.var.waterbalance_module.waterBalanceCheck(
                 [self.var.Precipitation, self.var.sumirrConsumption],
                 [self.var.sum_directRunoff, self.var.sum_interflow, self.var.sum_gwRecharge,self.var.totalET],  # Out
@@ -342,7 +344,7 @@ class waterbalance(object):
 
             #print self.var.channelStorageBefore[10],
             # print "%10.8f %10.8f %10.8f " % (income[10], out[10], store[10]),
-
+            """
 
 
         # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -406,7 +408,6 @@ class waterbalance(object):
 
             #report(decompress(self.var.sumRunoff), "C:\work\output3/sumRun.map")
 
-            ii= 1
         """
 
 

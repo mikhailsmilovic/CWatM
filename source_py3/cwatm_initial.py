@@ -21,6 +21,8 @@ from hydrological_modules.landcoverType import *
 from hydrological_modules.sealed_water import *
 from hydrological_modules.evaporation import *
 from hydrological_modules.groundwater import *
+from hydrological_modules.groundwater_modflow.groundwater_modflow import *
+
 from hydrological_modules.waterdemand import *
 from hydrological_modules.capillarRise import *
 from hydrological_modules.interception import *
@@ -32,7 +34,7 @@ from hydrological_modules.environflow import *
 
 from hydrological_modules.routing_reservoirs.routing_kinematic import *
 from hydrological_modules.lakes_reservoirs import *
-
+from hydrological_modules.waterquality1 import *
 
 # --------------------------------------------
 
@@ -81,7 +83,7 @@ class CWATModel_ini(DynamicModel):
         # if meteo maps have the same extend as the other spatial static maps -> meteomapsscale = True
         self.meteomapsscale = True
         if invcellmeteo != invcellldd:
-            if (not(Flags['quiet'])) and (not(Flags['veryquiet'])):
+            if (not(Flags['quiet'])) and (not(Flags['veryquiet'])) and (not(Flags['check'])):
                 msg = "Resolution of meteo forcing is " + str(maskmapAttr['reso_mask_meteo']) + " times higher than base maps."
                 print(msg)
             self.meteomapsscale = False
@@ -139,6 +141,8 @@ class CWATModel_ini(DynamicModel):
         self.landcoverType_module = landcoverType(self)
         self.evaporation_module = evaporation(self)
         self.groundwater_module = groundwater(self)
+        self.groundwater_modflow_module = groundwater_modflow(self)
+
         self.waterdemand_module = waterdemand(self)
         self.capillarRise_module = capillarRise(self)
         self.interception_module = interception(self)
@@ -148,7 +152,7 @@ class CWATModel_ini(DynamicModel):
 
         self.routing_kinematic_module = routing_kinematic(self)
         self.lakes_reservoirs_module = lakes_reservoirs(self)
-
+        self.waterquality1 = waterquality1(self)
 
         # include output of tss and maps
         self.output_module = outputTssMap(self)
@@ -158,6 +162,7 @@ class CWATModel_ini(DynamicModel):
         # run intial misc to get all global variables
         self.misc_module.initial()
         self.init_module.initial()
+
         self.readmeteo_module.initial()
         self.inflow_module.initial()
 
@@ -166,8 +171,15 @@ class CWATModel_ini(DynamicModel):
         self.snowfrost_module.initial()
         self.soil_module.initial()
 
+        self.groundwater_modflow_module.initial()
+        # groundwater before meteo, bc it checks steady state
+
+
         self.landcoverType_module.initial()
         self.groundwater_module.initial()
+
+
+
         self.runoff_concentration_module.initial()
         self.lakes_res_small_module.initial()
 
@@ -184,5 +196,6 @@ class CWATModel_ini(DynamicModel):
 
         self.output_module.initial()
         self.environflow_module.initial()
+        self.waterquality1.initial()
 
 

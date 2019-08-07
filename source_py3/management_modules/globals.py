@@ -37,7 +37,9 @@ global MMaskMap, maskmapAttr, bigmapAttr, cutmap, cutmapGlobal, cutmapFine, cutm
 global timestepInit
 global metaNetcdfVar
 global inputcounter
+global versioning
 
+versioning = {}
 timestepInit =[]
 binding = {}
 option = {}
@@ -88,6 +90,13 @@ cutmapFine = [0, 1, 0, 1]
 cutmapVfine = [0, 1, 0, 1]
 cdfFlag = [0, 0, 0,0,0,0,0]  # flag for netcdf output for all, steps and end, monthly (steps), yearly(steps), monthly , yearly
 metadataNCDF = {}
+
+# groundwater modflow
+global domain, indexes
+domain = {}
+indexes = {}
+
+
 
 global timeMes,TimeMesString, timeMesSum
 timeMes=[]
@@ -164,6 +173,8 @@ def globalFlags(arg):
     """
     Read flags - according to the flags the output is adjusted
     quiet,veryquiet, loud, checkfiles, noheader,printtime, warranty
+
+    :param arg: argument from calling cwatm
     """
 
     try:

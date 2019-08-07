@@ -41,8 +41,8 @@ class ExtParser(configparser.ConfigParser):
          def get(self, section, option, raw=False, vars=None
          placeholder replacement
 
-         :param section:
-         :param option:
+         :param section: section part of the settings file
+         :param option: option part of the settings file
          :param raw:
          :param vars:
          :return:
@@ -138,8 +138,9 @@ def parse_configuration(settingsFileName):
                 try:
                     option[opt] = config.getboolean(sec, opt)
                 except:
-                    msg = "Value in: \"" + sec +", " + opt + "\" is not True or False!"
-                    raise CWATMError(msg)
+                    option[opt] = config.getint(sec, opt)
+                    #msg = "Value in: \"" + sec +", " + opt + "\" is not True or False!"
+                    #raise CWATMError(msg)
 
 
             else:

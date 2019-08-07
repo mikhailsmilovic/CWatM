@@ -15,7 +15,9 @@ class landcoverType(object):
 
     """
     LAND COVER TYPE
+
     runs the 6 land cover types through soil procedures
+
     This routine calls the soil routine for each land cover type
     """
 
@@ -30,12 +32,14 @@ class landcoverType(object):
         """
         Initial part of the land cover type module
         Initialise the six land cover types
+
         * Forest
         * Grasland/non irrigated land
         * Irrigation
         * Paddy iirigation
         * Sealed area
         * Water covered area
+
         And initialize the soil variables
         """
 
@@ -341,9 +345,16 @@ class landcoverType(object):
     def dynamic_fracIrrigation(self, init = False, dynamic = True):
         """
         Dynamic part of the land cover type module
+
         Calculating fraction of land cover
+
         * loads the fraction of landcover for each year from netcdf maps
         * calculate the fraction of 6 land cover types based on the maps
+
+        :param init: (optional) True: set for the first time of a run
+        :param dynamic: used in the dynmic run not in the initial phase
+        :return: -
+
         """
 
         #if checkOption('includeIrrigation') and checkOption('dynamicIrrigationArea'):
@@ -408,13 +419,17 @@ class landcoverType(object):
     def dynamic(self):
         """
         Dynamic part of the land cover type module
+
         Calculating soil for each of the 6  land cover class
+
         * calls evaporation_module.dynamic
         * calls interception_module.dynamic
         * calls soil_module.dynamic
         * calls sealed_water_module.dynamic
+
         And sums every thing up depending on the land cover type fraction
         """
+
         #if (dateVar['curr'] == 15):
         #    ii=1
 
@@ -424,8 +439,15 @@ class landcoverType(object):
             preStor2 = self.var.sum_w2.copy()
             preStor3 = self.var.sum_w3.copy()
             pretop = self.var.sum_topwater
-            self.var.pretotalSto = self.var.totalSto.copy()
 
+        ### To compute water balance for modflow
+        if self.var.modflow:
+            if (dateVar['curr'] - int(dateVar['curr'] / self.var.modflow_timestep) * self.var.modflow_timestep) == 1 and \
+                    dateVar['curr'] > self.var.modflow_timestep:  # if it is the first step of the week
+                self.var.presumed_sum_gwRecharge = self.var.sumed_sum_gwRecharge.copy()
+                # stormodf = np.nansum((self.var.presumed_sum_gwRecharge/self.var.modflow_timestep-self.var.capillar-self.var.baseflow) * self.var.cellArea) # From ModFlow during the previous step
+                # stormodf = self.var.GWVolumeVariation / self.var.modflow_timestep # GW volume change from the previous ModFlow run (difference betwwen water levels times porosity)
+        self.var.pretotalSto = self.var.totalSto.copy()
 
         coverNo = 0
         # update soil (loop per each land cover type):
@@ -433,7 +455,7 @@ class landcoverType(object):
             if checkOption('includeIrrigation'):
                 usecovertype = 4  # include paddy and non paddy irrigation
             else:
-                usecovertype = 2   # exclude irrgation
+                usecovertype = 2   # exclude irrigation
             # calculate evaporation and transpiration for soil land cover types (not for sealed and water covered areas)
             if coverNo < usecovertype:
                 self.var.evaporation_module.dynamic(coverType, coverNo)
@@ -491,9 +513,17 @@ class landcoverType(object):
         self.var.totalSto = self.var.SnowCover + self.var.sum_interceptStor + self.var.sum_w1 + self.var.sum_w2 + self.var.sum_w3 + self.var.sum_topwater
         self.var.sum_runoff = self.var.sum_directRunoff + self.var.sum_interflow
 
+        ### Printing the soil+GW water balance (considering no pumping), without the surface part
+        #print('Date : ', dateVar['currDatestr'])
+        if checkOption('calcWaterBalance'):
+            if dateVar['curr'] > self.var.modflow_timestep:  # from the second step
+                storcwat = np.sum((self.var.totalSto - self.var.pretotalSto) * self.var.cellArea)  # Daily CWAT storage variations
+                cwatbudg = np.sum((self.var.Precipitation - self.var.sum_runoff - self.var.totalET + self.var.presumed_sum_gwRecharge / self.var.modflow_timestep - self.var.sum_gwRecharge - self.var.baseflow) * self.var.cellArea)  # Inputs-Outputs (baseflow comes from the previous ModFlow model)
+                print('CWatM-ModFlow water balance error [%]: ',
+                      round(100 * (cwatbudg - storcwat - self.var.GWVolumeVariation / self.var.modflow_timestep) /
+                            (0.5 * cwatbudg + 0.5 * storcwat + 0.5 * self.var.GWVolumeVariation / self.var.modflow_timestep) * 100) / 100)
 
-
-# --------------------------------------------------------------------
+        # --------------------------------------------------------------------
 
         #if (dateVar['curr'] == 104):
         #    ii=1
@@ -507,7 +537,7 @@ class landcoverType(object):
                 "InterAll", False)
 
 
-
+        """
 
         if checkOption('calcWaterBalance'):
             self.var.waterbalance_module.waterBalanceCheck(
@@ -577,6 +607,8 @@ class landcoverType(object):
         #print self.var.sum_directRunoff
         #report(decompress(self.var.sumsum_Precipitation), "c:\work\output\Prsum.map")
         #report(decompress(self.var.sumsum_gwRecharge), "c:\work\output\gwrsum.map")
+        
+        """
 
 
 
