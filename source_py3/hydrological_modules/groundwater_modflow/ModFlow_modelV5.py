@@ -54,10 +54,10 @@ def ModFlow_modelV5(self, path_data, numero, namemodel, StepSize, nrow,ncol, rec
         # MODFLOW FUNCTION
         ss = np.divide(self.var.poro,self.var.delv2)    # Specific storage [1/m]
         hk2 = self.var.hk0 * StepSize          # Permeability [1/m]
-        laytyp = 0                             # 0 if confined, else laytyp=1
-        layvka = 1                               # If layvka=0 vka=vertical hydraulic conductivity, if not vka=ratio horizontal to vertical conductivity
+        laytyp = 1                             # 0 if confined, else laytyp=1
+        layvka = 0.1                               # changed from 1 If layvka=0 vka=vertical hydraulic conductivity, if not vka=ratio horizontal to vertical conductivity
         vka = 1
-        sy = 0.1                               # Specific yield: not used if the layer is confined
+        sy = 0.20                              # Specific yield: not used if the layer is confined (changed from 0.06)
 
         ## FLOPY OBJECTS
         if numero == 1:
@@ -88,7 +88,7 @@ def ModFlow_modelV5(self, path_data, numero, namemodel, StepSize, nrow,ncol, rec
                 wel_sp = []
                 print('number of pumping wells :', len(pumping_datas))
                 for kk in range(len(pumping_datas)):  # adding each pumping well to the package
-                    wel_sp.append([0, pumping_datas[kk][0], pumping_datas[kk][1], pumping_datas[kk][2] * StepSize])
+                    wel_sp.append([0, pumping_datas[kk][0], pumping_datas[kk][1], pumping_datas[kk][2]]) # * StepSize])
                     # Pumping [m3/timestep] in the first layer
                 wel = flopy.modflow.ModflowWel(mf, stress_period_data=wel_sp)
                 # the well path has to be defined in the .nam file
@@ -108,7 +108,7 @@ def ModFlow_modelV5(self, path_data, numero, namemodel, StepSize, nrow,ncol, rec
             if self.var.GW_pumping:
                 wel_sp = []
                 for kk in range(len(pumping_datas)):  # adding each pumping well to the package
-                    wel_sp.append([0, pumping_datas[kk][0], pumping_datas[kk][1], pumping_datas[kk][2] * StepSize])  # Pumping [m3/timestep] in the first layer, warning pumping rate has to be  < 0 !!!
+                    wel_sp.append([0, pumping_datas[kk][0], pumping_datas[kk][1], pumping_datas[kk][2]]) # * StepSize])  # Pumping [m3/timestep] in the first layer, warning pumping rate has to be  < 0 !!!
                 wel = flopy.modflow.ModflowWel(mf, stress_period_data=wel_sp)  # the well path has to be defined in the .nam file
 
             rch = flopy.modflow.ModflowRch(mf, nrchop=3, rech=recharge)
@@ -128,6 +128,10 @@ def ModFlow_modelV5(self, path_data, numero, namemodel, StepSize, nrow,ncol, rec
             if self.var.GW_pumping: files.append(wel.fn_path)
             check_if_close(files)
 
+
+
+        self.var.modflow_timestep_pumping = 0
+        print('hello')
 
         ### -------- Running MODFLOW -----------------------------
         success, mfoutput = mf.run_model(silent=True, pause=False)  # Run the model
@@ -157,6 +161,17 @@ def ModFlow_modelV5(self, path_data, numero, namemodel, StepSize, nrow,ncol, rec
         # Groundwater storage in [m]
         head = np.where(self.var.head[0] == -999, self.var.botm[0]-self.var.actual_thick[0], self.var.head[0])
         self.var.modflowStorGW = (head - (self.var.botm[0]-self.var.actual_thick[0])) * self.var.poro[0]
+
+        #print("INSIDE ModFlow_modelV5")
+        head2 = np.where(self.var.head[0] == -999, self.var.botm[0], self.var.head[0])
+        self.var.modflowTopography = np.where(head2[0] < -900, head2[0], self.var.botm[0])
+
+
+        self.var.modflowDepth = np.where(self.var.head[0] < -900, -999, self.var.botm[0]-self.var.head[0])
+        self.var.modflowDepth2 = np.ma.masked_values(self.var.modflowDepth, -999)
+        #print('modflowDepth2')
+
+        self.var.modflowGwStore = (self.var.actual_thick[0] - (self.var.botm[0] - head)) * self.var.poro[0]  # * 1000**2 #cell area is km2
 
         budget_terms = 0
         if self.var.writeerror:

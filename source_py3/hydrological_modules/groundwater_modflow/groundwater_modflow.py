@@ -63,6 +63,9 @@ class groundwater_modflow(object):
 
             self.var.res_ModFlow = loadmap('res_ModFlow')
             self.var.modflow_timestep = int(loadmap('modflow_timestep'))
+            self.var.modflow_counter = 0
+            self.var.pot_pumping_total=0
+
             self.var.Ndays_steady = int(loadmap('Ndays_steady'))
 
             #CWATMs resolution [degree]
@@ -266,6 +269,10 @@ class groundwater_modflow(object):
             self.var.storGroundwater1 = globals.inZero
             self.var.modflowStorGW = self.var.poro[0] * 0.
             self.var.modflowWaterLevel = self.var.poro[0] * 0.
+            self.var.modflowTopography = self.var.poro[0] * 0.
+            self.var.modflowDepth = self.var.poro[0] * 0.
+            self.var.modflowDepth2 = self.var.poro[0] * 0.
+            self.var.modflowGwStore = self.var.poro[0] * 0.
             self.var.sumstorGW = globals.inZero
             self.var.sumstorGW2 = globals.inZero
 

@@ -399,7 +399,8 @@ class waterdemand(object):
             #    At 1km resolution for a highly managed aquifer, this way is probably justified.
             #    Individual cells probably have access to channels within their own cell (but not necessarily those around it) and water delivered via canals (from lakes and reservoirs)
 
-            shareChannelStorage = False #Method 2
+            #shareChannelStorage = False #Method 2
+            shareChannelStorage = True
 
 
             if checkOption('usingAllocSegments'):
@@ -553,6 +554,74 @@ class waterdemand(object):
 
             self.var.nonFossilGroundwaterAbs = np.minimum(self.var.readAvlStorGroundwater, self.var.pot_GroundwaterAbstract)
 
+            # ========================================================
+            # construction site
+            # begin
+            # installing wells to meet groundwater demand
+            # ========================================================
+
+            demand2pumping = True
+            days = int(cbinding('modflow_timestep'))
+
+            if demand2pumping == True:
+
+                import pyproj
+
+                ## DEFINE GEOREFERENCING SYSTEM ##
+                wgs84 = pyproj.Proj("+init=EPSG:4326")  # Associated coord system
+                UTM = pyproj.Proj("+init=EPSG:32643")  # Projection system for the Upper Bhima basin
+
+                pot_pumping = -1 * self.var.pot_GroundwaterAbstract * self.var.cellArea #in [m3/day]
+                print('hello in pumping')
+                self.var.pot_pumping_total += pot_pumping
+                print( self.var.modflow_counter)
+                self.var.modflow_counter += 1
+                if self.var.modflow_counter == self.var.modflow_timestep:
+                    print('hello in pumping2')
+                    if "Lat" in binding:
+                        lat = loadmap("Lat")
+                        lon = loadmap("Lon")
+
+                        Coord = pyproj.transform(wgs84, UTM, lon, lat)
+                        x = Coord[0]
+                        y = Coord[1]
+
+                        #f = open('E:\Modflow\Last_CWatM_ModFlow_Bhima\ModFlow_input\ModFlow_inputs500m_Bhima\UB_limits.txt')
+                        f = open('UB_limits.txt')
+                        lines = list(f)
+
+                        min_x = float(lines[0]) // 1
+                        max_y = float(lines[2]) // 1
+
+                        xi = []
+                        yi = []
+
+
+                        xi = (x - min_x) // 500
+                        yi= (max_y - y) // 500
+
+                        Wells = list(zip(yi, xi, self.var.pot_pumping_total))
+                        total_pump = sum([i[2] for i in Wells])
+                        avg_daily = total_pump/days
+                        avg_daily_single = avg_daily/(800000)
+                        #print(Wells)
+                        #Wells = np.array([[0, yi[i], xi[i], pot_pumping[i]] for i in range(len(lon))])
+                        print(Wells)
+
+                        np.save('E:\Modflow\Last_CWatM_ModFlow_Bhima\ModFlow_input\ModFlow_inputs500m_Bhima\Pumping_input_file.npy', Wells)
+                        self.var.pot_pumping_total = 0
+                        print('The average total daily pumping rate over the last 7 days was ' + str(avg_daily) +' m3/day.')
+                        print('The average daily pumping rate per cell over the 7 days was ' + str(avg_daily_single) + ' m/day')
+
+
+                    #f = open('wells_UB.txt', 'w')
+                    #f.write(str(lat[:]))
+                    #f.write(str(np.array(lon)))
+
+            # ========================================================
+            # construction site
+            # end
+            # ========================================================
 
             # if limitAbstraction from groundwater is True
             # fossil gwAbstraction and water demand may be reduced
