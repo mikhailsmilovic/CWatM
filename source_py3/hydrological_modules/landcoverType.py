@@ -36,7 +36,7 @@ class landcoverType(object):
         * Forest
         * Grasland/non irrigated land
         * Irrigation
-        * Paddy iirigation
+        * Paddy irrigation
         * Sealed area
         * Water covered area
 
@@ -114,8 +114,7 @@ class landcoverType(object):
             self.var.sum_interceptStor += self.var.fracVegCover[i] * self.var.interceptStor[i]
             i += 1
 
-
-
+        #self.var.riceWeight = loadmap('riceWeight')
         self.var.minCropKC= loadmap('minCropKC')
         self.var.minTopWaterLayer = loadmap("minTopWaterLayer")
         self.var.maxGWCapRise = loadmap("maxGWCapRise")
@@ -370,8 +369,11 @@ class landcoverType(object):
                 landcoverYear = datetime.datetime(int(binding['fixLandcoverYear']), 1, 1)
 
             i = 0
+            self.var.riceWeight = loadmap('riceWeight')
             for coverType in self.var.coverTypes:
                 self.var.fracVegCover[i] = readnetcdf2('fractionLandcover', landcoverYear, useDaily="yearly",  value= 'frac'+coverType)
+                if i == 2: #paddy
+                    self.var.fracVegCover *= self.var.riceWeight
                 i += 1
 
 
